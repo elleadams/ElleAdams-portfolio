@@ -1,16 +1,14 @@
 ---
-title: "My website and data analysis portfolio"
+title: "Elle Adams - Website and Data Analysis Portfolio"
 ---
 
-**Feel free to change the text below any way you want 😁!**
+**EPID 8060E Website**
 
 # Hello
 
-### And hello again
+### This is my first attempt to make a website
 
-Welcome to **my website** and _data analysis portfolio._ 
+Welcome to **my website** and *data analysis portfolio.*
 
-
-* Please use the `Menu Bar` above to look around.
-* Have fun!
-
+-   Please use the `Menu Bar` above to look around.
+-   I hope this isn't too plain/boring!
