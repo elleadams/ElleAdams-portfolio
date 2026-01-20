@@ -2,4 +2,117 @@
 title: "Future Exercise"
 ---
 
-Placeholder file for a future exercise.
+```{r}
+#load required packages
+library(tidyverse)
+library(dslabs)
+library(dplyr)
+```
+
+
+```{r}
+#get an overview of data structure
+str(gapminder)
+```
+
+
+```{r}
+#get a summary of data
+summary(gapminder)
+```
+
+
+```{r}
+#determine what time of object gapminder is
+class(gapminder)
+```
+
+
+```{r}
+#assign African countries to new object 
+africadata <- gapminder %>% filter(continent == "Africa")
+
+#overview of data structure
+str(africadata)
+
+#summary of data 
+summary(africadata)
+```
+
+
+```{r}
+#create new object from africadata that has only infant_mortality and life_expectancy 
+africa_inf_exp <- africadata %>% select("infant_mortality", "life_expectancy")
+
+#create new object from africadata that has only population and life_expectancy
+africa_pop_exp <- africadata %>% select("population", "life_expectancy")
+
+#structure overview of both africa_inf_exp and africa_pop_exp
+str(africa_inf_exp)
+str(africa_pop_exp)
+
+#summary of both 
+summary(africa_inf_exp)
+summary(africa_pop_exp)
+```
+
+
+```{r}
+#plot infant_mortality (x) vs. life_expectancy (y)
+ggplot(africa_inf_exp, (aes(x = infant_mortality, y = life_expectancy))) +
+  geom_point()
+
+#plot population (x) vs. life expectancy (y)
+##population in log scale so log(x) vs. (y)
+###check structure
+africa_pop_exp <- africa_pop_exp %>% mutate(log_population = log10(population))
+str(africa_pop_exp)
+ggplot(africa_pop_exp, (aes(x = log_population, y = life_expectancy))) +
+    geom_point()
+```
+
+Appearance of streaks - likely represent each country over time as its population and life expextancy both slowly increase. 
+
+```{r}
+#identify where the NA values are, to avoid them in the next step 
+missing_inf_years <- africadata %>% filter(is.na(infant_mortality)) %>% pull(year) %>% unique()
+
+#new object with only year 2000 data 
+africadata_2000 <- africadata %>% filter(year == 2000)
+
+#structure of new africa_data2000
+str(africadata_2000)
+
+#plot infant_mortality (x) vs. life_expectancy (y)
+ggplot(africadata_2000, (aes(x = infant_mortality, y = life_expectancy))) +
+  geom_point()
+
+##plot population (x) vs. life expectancy (y)
+##population in log scale so log(x) vs. (y)
+###check structure
+africadata_2000 <- africadata_2000 %>% mutate(log_population = log10(population))
+str(africadata_2000)
+ggplot(africadata_2000, (aes(x = log_population, y = life_expectancy))) +
+    geom_point()
+```
+
+
+```{r}
+#Fit life expectancy as the outcome, and infant mortality as the predictor
+fit1 <- lm(life_expectancy ~ infant_mortality, data = africadata_2000)
+
+#Fit life expectancy as the outcome, and population as the predictor
+fit2 <- lm(life_expectancy ~ population, data = africadata_2000)
+
+#I wasn't sure if you wanted population or the log_population, so I did fit3 to be the log_population
+fit3 <- lm(life_expectancy ~ log_population, data = africadata_2000)
+
+#summary of the fits 
+summary(fit1)
+summary(fit2)
+summary(fit3)
+```
+
+What I found here - fit1: p-value = 2.826e-08, R-squared = 0.4593 - p-value indicates significant difference (well below 0.05), but with an R-squared of 0.4593, that is ia fairly weak inverse (negative) correlation between life expectancy and infant mortality, confirmed visually with plot
+fit2: p-value = 0.6159, R-squared = -0.01513 - p-value indicates no significant difference (above 0.05), no relationship between life_expectancy and population
+fit3: p-vlaue = 0.4755, R-squared = -0.009755 - p-value indicates no signifiicant difference (above 0.05), no relationhsip between life expectancy and log_population
