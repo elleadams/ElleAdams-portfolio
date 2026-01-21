@@ -116,3 +116,95 @@ summary(fit3)
 What I found here - fit1: p-value = 2.826e-08, R-squared = 0.4593 - p-value indicates significant difference (well below 0.05), but with an R-squared of 0.4593, that is ia fairly weak inverse (negative) correlation between life expectancy and infant mortality, confirmed visually with plot
 fit2: p-value = 0.6159, R-squared = -0.01513 - p-value indicates no significant difference (above 0.05), no relationship between life_expectancy and population
 fit3: p-vlaue = 0.4755, R-squared = -0.009755 - p-value indicates no signifiicant difference (above 0.05), no relationhsip between life expectancy and log_population
+
+## Additional exploration: `dslabs::gapminder` (contributed by Alexandra Tejada-Strop)
+
+In this section I explore the `gapminder` dataset from the `dslabs` package. I do basic exploration, some light cleaning, a few figures, and then fit a simple regression model to describe how life expectancy relates to economic output and time.
+
+# Load packages ----
+library(tidyverse)
+library(dslabs)
+
+# Load data ----
+data(gapminder)  # loads a data frame called `gapminder`
+
+# Quick look ----
+glimpse(gapminder)
+summary(gapminder)
+
+# Check for missing values ----
+gapminder %>%
+  summarise(across(everything(), ~ sum(is.na(.))))
+
+### Basic processing / cleaning
+
+I create a few helpful variables:
+- `gdp_per_cap`: GDP per capita
+- `log_gdp_per_cap`: log10 GDP per capita (often more linear for modeling)
+I also remove rows where GDP or population are missing or zero (to avoid dividing by zero and taking log of non-positive values).
+
+gap2 <- gapminder %>%
+  mutate(
+    gdp_per_cap = gdp / population,
+    log_gdp_per_cap = log10(gdp_per_cap)
+  ) %>%
+  filter(
+    !is.na(gdp_per_cap),
+    is.finite(log_gdp_per_cap),
+    gdp_per_cap > 0,
+    population > 0
+  )
+
+glimpse(gap2)
+
+### Exploratory figures
+
+1) Life expectancy over time by region  
+2) Relationship between life expectancy and GDP per capita (log scale), colored by region  
+
+# 1) Life expectancy over time by region
+gap2 %>%
+  group_by(year, region) %>%
+  summarise(mean_life_exp = mean(life_expectancy), .groups = "drop") %>%
+  ggplot(aes(x = year, y = mean_life_exp, color = region)) +
+  geom_line() +
+  labs(
+    title = "Average life expectancy over time by region",
+    x = "Year",
+    y = "Average life expectancy"
+  )
+
+# 2) Life expectancy vs GDP per cap (log scale)
+gap2 %>%
+  ggplot(aes(x = log_gdp_per_cap, y = life_expectancy, color = region)) +
+  geom_point(alpha = 0.4) +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(
+    title = "Life expectancy vs log10(GDP per capita)",
+    x = "log10(GDP per capita)",
+    y = "Life expectancy"
+  )
+
+### Simple statistical model
+
+I fit a linear regression model predicting life expectancy from:
+- log10(GDP per capita)
+- year (to capture general time trends)
+- region (to capture broad geographic differences)
+
+This is not meant to be causal, just a simple descriptive model.
+
+m1 <- lm(life_expectancy ~ log_gdp_per_cap + year + region, data = gap2)
+summary(m1)
+
+# A cleaner coefficient table
+broom::tidy(m1) %>%
+  arrange(p.value)
+
+### Results (plain-language summary)
+
+- The coefficient for `log_gdp_per_cap` is typically positive: higher GDP per capita is associated with higher life expectancy.
+- The coefficient for `year` is typically positive: life expectancy tends to increase over time.
+- Regional coefficients reflect systematic differences across regions after accounting for GDP per capita and time.
+
+(Exact estimates may vary slightly depending on filtering and package versions.)
