@@ -11,7 +11,7 @@ website:
       - text: "Projects"
         menu:
           - text: "Starter Analysis Exercise"
-            file: /Users/elleadams/ElleAdams-portfolio/starter-analysis-exercise/starter-analysis-exercise.qmd
+            file: starter-analysis-exercise/starter-analysis-exercise.qmd
           
     right:
       - icon: github 
