@@ -13,7 +13,7 @@ website:
           - text: "Starter Analysis Exercise"
             file: starter-analysis-exercise/starter-analysis-exercise.qmd
           - text: "READy Exercise"
-            file: ready-exercise.html
+            file: ready-exercise/ready-exercise.html
     right:
       - icon: github 
         href: https://github.com/elleadams/ElleAdams-portfolio.git       
