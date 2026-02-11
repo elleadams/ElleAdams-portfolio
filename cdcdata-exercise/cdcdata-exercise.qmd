@@ -1,0 +1,80 @@
+The data for this exercise is the Weekly Respiratory Syncytial Virus (RSV) Vaccination Coverage among Pregnant Women by Race and Ethnicity age 18-49 in 2023-2024, gathered by National Center for Immunization and Respiratory Diseases (NCIRD), collected from the CDC's data website.Link to data: https://data.cdc.gov/Pregnancy-Vaccination/Weekly-Respiratory-Syncytial-Virus-RSV-Vaccination/g4jn-64pd/about_data
+The seven columns include the week ending date, race and ethnicity, percent of pregnant women who were vaccinated, denominator being the estimated number of pregnant women, date order, race sort order, and figure ID. 
+
+```{r}
+##Load required packages
+library(dplyr)
+library(ggplot2)
+library(tidyverse)
+```
+
+Cleaning the data
+
+```{r}
+##Read in the file
+rsv_preg_data <- read_csv("cdcdata-exercise/Weekly_Respiratory_Syncytial_Virus_(RSV)_Vaccination_Coverage_among_Pregnant_Women_by_Race_and_Ethnicity_20260209.csv")
+
+##Check on what the data looks like 
+str(rsv_preg_data)
+
+head(rsv_preg_data)
+
+colSums(is.na(rsv_preg_data))
+
+##Fix the Week_Ending_Date column so that ggplot knows what it is 
+
+rsv_preg_data$Week_Ending_Date <- ymd_hms(rsv_preg_data$Week_Ending_Date)
+
+##Also going to rename some columns just to make it easier to look at and understand
+
+rsv_preg_data <- rsv_preg_data %>% rename(Percent_Vaxed = Percent, Total_Preg = Denominator)
+
+##Also going to create a column using the total number pregnant and percent vaccinated to get number vaccinated 
+
+rsv_preg_data <- rsv_preg_data %>% mutate(Number_Vax = (Percent_Vaxed/100)*Total_Preg)
+
+##Now thinking about what percent of the total vaccinated per day does each race/ethnicity represent
+
+rsv_preg_data <- rsv_preg_data %>% group_by(Week_Ending_Date) %>%
+    mutate(Percent_of_total_vax = (Number_Vax/Number_Vax[`Race and Ethnicity` == "Overall"])*100) %>%
+    ungroup()
+
+##I'm also going to delete some columns that I don't need
+rsv_preg_data <- rsv_preg_data %>% select(-Figure_ID, -`Race Sort Order`, -`Date Order`)
+
+##Check that it all looks right 
+head(rsv_preg_data)
+``` 
+
+Start exploring the data
+
+```{r}
+##Starting with looking at the percent vaccinated over time for each race/ethnicity 
+ggplot(rsv_preg_data, aes(x = Week_Ending_Date, y = Percent_Vaxed, color =  `Race and Ethnicity`)) +
+    geom_point() + 
+    geom_line(aes(group = `Race and Ethnicity`)) +
+    theme(axis.text.x = element_text(angle = 90))
+```
+
+It seems for all races and ethnicities, the percent of vaccinated mothers increases over time but then begins to plateau toward the end of the sampled dates. The overall line (the sum of all the race/ethnic groups) also follows this trend. 
+
+```{r}
+##Now looking at for each time point, what proportion of the total number vaccinated pregnant women make up each race/ethnicity. Excluding the overall, since that is the total for all groups.
+
+ggplot(rsv_preg_data %>% filter(`Race and Ethnicity` != "Overall"), aes(x = Week_Ending_Date, y = Percent_of_total_vax, fill = `Race and Ethnicity`)) +
+  geom_bar(position = "fill", stat = "identity") +
+   scale_y_continuous(labels = scales::percent)
+```
+
+From this graph, the percent of vaccinated mothers from each race/ethnic group on each date is not constant. Looking at both this graph and the previous plot, it appears that the "Black, NH" Race and Ethnicity has the lowest number of pregnant mothers getting vaccinated, consistently. "Asian, NH" seems to be the fastest growing number of women getting vaccinatedand "White, NH" is most vaccinated. 
+
+```{r}
+##At this point, I want to see the overall stats, for ease of not having to search for the totals in the whole table, not the race/ethnicity specific stats, so I'm going to make a new data frame 
+
+rsv_preg_overall <- rsv_preg_data %>% filter(`Race and Ethnicity` == "Overall") %>%
+    select(-`Race and Ethnicity`, -Percent_of_total_vax)
+
+head(rsv_preg_overall)
+```
+
+I find it interesting that, according to this table, the percent of totally pregnant women vaccinated for RSV does not exceed 17.80% in this dataset and appears to be plateuing, I wonder WHY people are not wanting the RSV vaccine. 
