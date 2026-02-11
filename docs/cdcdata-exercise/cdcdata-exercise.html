@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>Week 4 Data Exercise – Elle Adams Data Analysis Portfolio</title>
+<title>cdcdata-exercise – Elle Adams Data Analysis Portfolio</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -172,30 +172,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <!-- margin-sidebar -->
     
 <!-- main -->
-<main class="content" id="quarto-document-content">
-
-<header id="title-block-header" class="quarto-title-block default">
-<div class="quarto-title">
-<h1 class="title">Week 4 Data Exercise</h1>
-</div>
+<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"></header>
 
 
 
-<div class="quarto-title-meta">
 
-    
-  
-    
-  </div>
-  
-
-
-</header>
-
-
-<p>Load the necessary packages</p>
+<p>The data for this exercise is the Weekly Respiratory Syncytial Virus (RSV) Vaccination Coverage among Pregnant Women by Race and Ethnicity age 18-49 in 2023-2024, gathered by National Center for Immunization and Respiratory Diseases (NCIRD), collected from the CDC’s data website.Link to data: https://data.cdc.gov/Pregnancy-Vaccination/Weekly-Respiratory-Syncytial-Virus-RSV-Vaccination/g4jn-64pd/about_data The seven columns include the week ending date, race and ethnicity, percent of pregnant women who were vaccinated, denominator being the estimated number of pregnant women, date order, race sort order, and figure ID.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="do">##Load required packages</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stderr">
 <pre><code>
 Attaching package: 'dplyr'</code></pre>
@@ -210,13 +195,8 @@ Attaching package: 'dplyr'</code></pre>
 
     intersect, setdiff, setequal, union</code></pre>
 </div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidytext)</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(pdftools)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stderr">
-<pre><code>Using poppler version 25.10.0</code></pre>
-</div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stderr">
 <pre><code>── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
 ✔ forcats   1.0.1     ✔ stringr   1.6.0
@@ -231,167 +211,160 @@ Attaching package: 'dplyr'</code></pre>
 ℹ Use the conflicted package (&lt;http://conflicted.r-lib.org/&gt;) to force all conflicts to become errors</code></pre>
 </div>
 </div>
-<p>Upon doing some googling about text analysis, I found here: https://cran.r-project.org/web/packages/tidytext/vignettes/tidytext.html, an example using tidytext to do an analysis of the Jane Austen novels. This inspired me to do one on Twilight, which I had been debating in my personal life lately so it felt right.</p>
-<p>I was able to download a pdf of the first twilight book, which I moved to my project folder as per the advice of ChatGPT when I couldn’t figure out how to open a pdf in R.</p>
-<p>So the first things I had to do to it to work with it were to get it in a format I was comfortable with and clean it up.</p>
+<p>Cleaning the data</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="do">##Extracting text from the pdf - using pdftools, which Google recommended to use - generates a character vector, each element is one page of text from the book</span></span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="fu">file.exists</span>(<span class="st">"tw1.pdf"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="do">##Read in the file</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="fu">file.exists</span>(<span class="st">"cdcdata-exercise/Weekly_Respiratory_Syncytial_Virus_(RSV)_Vaccination_Coverage_among_Pregnant_Women_by_Race_and_Ethnicity_20260209.csv"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>[1] TRUE</code></pre>
+<pre><code>[1] FALSE</code></pre>
 </div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>tw1_raw <span class="ot">&lt;-</span> <span class="fu">pdf_text</span>(<span class="st">"tw1.pdf"</span>)</span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="fu">str</span>(tw1_raw)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>rsv_preg_data <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"Weekly_Respiratory_Syncytial_Virus_(RSV)_Vaccination_Coverage_among_Pregnant_Women_by_Race_and_Ethnicity_20260209.csv"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Rows: 171 Columns: 7
+── Column specification ────────────────────────────────────────────────────────
+Delimiter: ","
+chr (2): Week_Ending_Date, Race and Ethnicity
+dbl (4): Percent, Date Order, Race Sort Order, Figure_ID
+num (1): Denominator
+
+ℹ Use `spec()` to retrieve the full column specification for this data.
+ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="do">##Check on what the data looks like </span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="fu">str</span>(rsv_preg_data)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code> chr [1:537] "" ...</code></pre>
+<pre><code>spc_tbl_ [171 × 7] (S3: spec_tbl_df/tbl_df/tbl/data.frame)
+ $ Week_Ending_Date  : chr [1:171] "2023 Sep 30 12:00:00 AM" "2023 Sep 30 12:00:00 AM" "2023 Sep 30 12:00:00 AM" "2023 Sep 30 12:00:00 AM" ...
+ $ Race and Ethnicity: chr [1:171] "American Indian / Alaska Native, NH" "Asian, NH" "Black, NH" "Hispanic/Latino" ...
+ $ Percent           : num [1:171] 0 0 0 0 0 0 0 0 0 0 ...
+ $ Denominator       : num [1:171] 49 2811 1265 6809 714 ...
+ $ Date Order        : num [1:171] 1 1 1 1 1 1 1 1 1 2 ...
+ $ Race Sort Order   : num [1:171] 1 2 3 4 5 6 7 8 9 1 ...
+ $ Figure_ID         : num [1:171] 1 1 1 1 1 1 1 1 1 1 ...
+ - attr(*, "spec")=
+  .. cols(
+  ..   Week_Ending_Date = col_character(),
+  ..   `Race and Ethnicity` = col_character(),
+  ..   Percent = col_double(),
+  ..   Denominator = col_number(),
+  ..   `Date Order` = col_double(),
+  ..   `Race Sort Order` = col_double(),
+  ..   Figure_ID = col_double()
+  .. )
+ - attr(*, "problems")=&lt;externalptr&gt; </code></pre>
 </div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="do">##Now I need to turn it into a data frame - so now we have a column of pages and a column of text on that page</span></span>
-<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>tw1_df <span class="ot">&lt;-</span> <span class="fu">tibble</span>(<span class="at">page =</span> <span class="fu">seq_along</span>(tw1_raw), <span class="at">text =</span> tw1_raw)</span>
-<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(tw1_df)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(rsv_preg_data)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code># A tibble: 6 × 2
-   page text                                                                    
-  &lt;int&gt; &lt;chr&gt;                                                                   
-1     1 ""                                                                      
-2     2 "I'd never given much thought to how I would die —\nthough I'd had reas…
-3     3 "                    FIRST SIGHT\n\nMy mother drove me to the airport w…
-4     4 "My mom looks like me, except with short hair and\nlaugh lines. I felt …
-5     5 "permanence. He'd already gotten me registered for\nhigh school and was…
-6     6 "\"I found a good car for you, really cheap,\" he\nannounced when we we…</code></pre>
+<pre><code># A tibble: 6 × 7
+  Week_Ending_Date        `Race and Ethnicity`  Percent Denominator `Date Order`
+  &lt;chr&gt;                   &lt;chr&gt;                   &lt;dbl&gt;       &lt;dbl&gt;        &lt;dbl&gt;
+1 2023 Sep 30 12:00:00 AM American Indian / Al…       0          49            1
+2 2023 Sep 30 12:00:00 AM Asian, NH                   0        2811            1
+3 2023 Sep 30 12:00:00 AM Black, NH                   0        1265            1
+4 2023 Sep 30 12:00:00 AM Hispanic/Latino             0        6809            1
+5 2023 Sep 30 12:00:00 AM Multiple/Other, NH          0         714            1
+6 2023 Sep 30 12:00:00 AM Native Hawaiian / Pa…       0         115            1
+# ℹ 2 more variables: `Race Sort Order` &lt;dbl&gt;, Figure_ID &lt;dbl&gt;</code></pre>
 </div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="do">##Google says that the tidytext format is "one-token-per-row", which would be in this case making it one word per row. </span></span>
-<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>tw1_tidy <span class="ot">&lt;-</span> tw1_df <span class="sc">%&gt;%</span> <span class="fu">unnest_tokens</span>(word, text)</span>
-<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(tw1_tidy)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="fu">colSums</span>(<span class="fu">is.na</span>(rsv_preg_data))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code># A tibble: 6 × 2
-   page word   
-  &lt;int&gt; &lt;chr&gt;  
-1     2 i'd    
-2     2 never  
-3     2 given  
-4     2 much   
-5     2 thought
-6     2 to     </code></pre>
+<pre><code>  Week_Ending_Date Race and Ethnicity            Percent        Denominator 
+                 0                  0                  0                  0 
+        Date Order    Race Sort Order          Figure_ID 
+                 0                  0                  0 </code></pre>
 </div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="do">##The Jane Austen example taught me what "stop words" are -words like "to", "and", "of", "the", etc that I don't care to involve in my analysis. Getting rid of those, and getting rid of numbers. </span></span>
-<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(<span class="st">"stop_words"</span>)</span>
-<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>tw1_tidy_clean <span class="ot">&lt;-</span> tw1_tidy <span class="sc">%&gt;%</span> <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">str_detect</span>(word, <span class="st">"^[0-9]+$"</span>)) <span class="sc">%&gt;%</span></span>
-<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">anti_join</span>(stop_words, <span class="at">by =</span> <span class="st">"word"</span>)</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="do">##Fix the Week_Ending_Date column so that ggplot knows what it is </span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>rsv_preg_data<span class="sc">$</span>Week_Ending_Date <span class="ot">&lt;-</span> <span class="fu">ymd_hms</span>(rsv_preg_data<span class="sc">$</span>Week_Ending_Date)</span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a><span class="do">##Also going to rename some columns just to make it easier to look at and understand</span></span>
 <span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(tw1_tidy_clean)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>rsv_preg_data <span class="ot">&lt;-</span> rsv_preg_data <span class="sc">%&gt;%</span> <span class="fu">rename</span>(<span class="at">Percent_Vaxed =</span> Percent, <span class="at">Total_Preg =</span> Denominator)</span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a><span class="do">##Also going to create a column using the total number pregnant and percent vaccinated to get number vaccinated </span></span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a>rsv_preg_data <span class="ot">&lt;-</span> rsv_preg_data <span class="sc">%&gt;%</span> <span class="fu">mutate</span>(<span class="at">Number_Vax =</span> (Percent_Vaxed<span class="sc">/</span><span class="dv">100</span>)<span class="sc">*</span>Total_Preg)</span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a><span class="do">##Now thinking about what percent of the total vaccinated per day does each race/ethnicity represent</span></span>
+<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-15"><a href="#cb18-15" aria-hidden="true" tabindex="-1"></a>rsv_preg_data <span class="ot">&lt;-</span> rsv_preg_data <span class="sc">%&gt;%</span> <span class="fu">group_by</span>(Week_Ending_Date) <span class="sc">%&gt;%</span></span>
+<span id="cb18-16"><a href="#cb18-16" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">Percent_of_total_vax =</span> (Number_Vax<span class="sc">/</span>Number_Vax[<span class="st">`</span><span class="at">Race and Ethnicity</span><span class="st">`</span> <span class="sc">==</span> <span class="st">"Overall"</span>])<span class="sc">*</span><span class="dv">100</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb18-17"><a href="#cb18-17" aria-hidden="true" tabindex="-1"></a>    <span class="fu">ungroup</span>()</span>
+<span id="cb18-18"><a href="#cb18-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-19"><a href="#cb18-19" aria-hidden="true" tabindex="-1"></a><span class="do">##I'm also going to delete some columns that I don't need</span></span>
+<span id="cb18-20"><a href="#cb18-20" aria-hidden="true" tabindex="-1"></a>rsv_preg_data <span class="ot">&lt;-</span> rsv_preg_data <span class="sc">%&gt;%</span> <span class="fu">select</span>(<span class="sc">-</span>Figure_ID, <span class="sc">-</span><span class="st">`</span><span class="at">Race Sort Order</span><span class="st">`</span>, <span class="sc">-</span><span class="st">`</span><span class="at">Date Order</span><span class="st">`</span>)</span>
+<span id="cb18-21"><a href="#cb18-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-22"><a href="#cb18-22" aria-hidden="true" tabindex="-1"></a><span class="do">##Check that it all looks right </span></span>
+<span id="cb18-23"><a href="#cb18-23" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(rsv_preg_data)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code># A tibble: 6 × 2
-   page word     
-  &lt;int&gt; &lt;chr&gt;    
-1     2 die      
-2     2 reason   
-3     2 months   
-4     2 imagined 
-5     2 stared   
-6     2 breathing</code></pre>
+<pre><code># A tibble: 6 × 6
+  Week_Ending_Date    `Race and Ethnicity`   Percent_Vaxed Total_Preg Number_Vax
+  &lt;dttm&gt;              &lt;chr&gt;                          &lt;dbl&gt;      &lt;dbl&gt;      &lt;dbl&gt;
+1 2023-09-30 00:00:00 American Indian / Ala…             0         49          0
+2 2023-09-30 00:00:00 Asian, NH                          0       2811          0
+3 2023-09-30 00:00:00 Black, NH                          0       1265          0
+4 2023-09-30 00:00:00 Hispanic/Latino                    0       6809          0
+5 2023-09-30 00:00:00 Multiple/Other, NH                 0        714          0
+6 2023-09-30 00:00:00 Native Hawaiian / Pac…             0        115          0
+# ℹ 1 more variable: Percent_of_total_vax &lt;dbl&gt;</code></pre>
 </div>
 </div>
-<p>Now to do the actual text analysis.</p>
+<p>Start exploring the data</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="do">##How many times each word shows up</span></span>
-<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>tw1_word_count <span class="ot">&lt;-</span> tw1_tidy_clean <span class="sc">%&gt;%</span> <span class="fu">count</span>(word, <span class="at">sort =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(tw1_word_count)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
-<pre><code># A tibble: 6 × 2
-  word          n
-  &lt;chr&gt;     &lt;int&gt;
-1 twilight    540
-2 meyer       536
-3 stephanie   536
-4 eyes        497
-5 edward      377
-6 voice       339</code></pre>
-</div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="do">## Okay, so this showed me that "twilight", "stepanie", and "meyer", aka the title and name of author are the most common. So I'll get rid of those. </span></span>
-<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>tw1_word_count <span class="ot">&lt;-</span> tw1_word_count <span class="sc">%&gt;%</span> <span class="fu">filter</span>(word <span class="sc">!=</span></span>
-<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a> <span class="st">"twilight"</span>, word <span class="sc">!=</span> <span class="st">"meyer"</span>, word <span class="sc">!=</span> <span class="st">"stephanie"</span>)</span>
-<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a> <span class="fu">head</span>(tw1_word_count)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
-<pre><code># A tibble: 6 × 2
-  word       n
-  &lt;chr&gt;  &lt;int&gt;
-1 eyes     497
-2 edward   377
-3 voice    339
-4 looked   266
-5 time     212
-6 bella    208</code></pre>
-</div>
-</div>
-<p>So top 5 words are “eyes”, “edward”, “voice”, “looked”, and “time”. Which I think does make sense because the book is written from the point of view of Bella, falling in love with Edward, and she does focus a lot during the book on how angelic she finds his eyes and voice, and she does spend considerable time worrying about time, and aging, since he is a vampire does not age.</p>
-<p>One criticism of Twilight is the age difference between Edward and Bella, with people feeling like he sinisterly influence her, forced her, manipulated her, scared her, etc into being with him (which if you read it, does not happen). To explore this, I wanted to see how Bella was describing her feelings in the book to see if she was feeling negatively in any way. Google told me a sentiment analysis is a common approach for a text analysis, so I proceeded with that.</p>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="do">##Using the Bing sentiment lexicon, look at the sentiment/connotation of each word. </span></span>
-<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>tw1_sentiment <span class="ot">&lt;-</span> tw1_tidy_clean <span class="sc">%&gt;%</span> <span class="fu">inner_join</span>(<span class="fu">get_sentiments</span>(<span class="st">"bing"</span>), <span class="at">by =</span> <span class="st">"word"</span>)</span>
-<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a><span class="do">##Count between negative and positive, which is more prevalent. </span></span>
-<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a>tw1_sentiment <span class="sc">%&gt;%</span> <span class="fu">count</span>(sentiment)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
-<pre><code># A tibble: 2 × 2
-  sentiment     n
-  &lt;chr&gt;     &lt;int&gt;
-1 negative   4293
-2 positive   2399</code></pre>
-</div>
-</div>
-<p>I found it a little interesting that a love story would have 4293 words with negative sentiment and only 2399 words with positive sentiment. BUT it is a vampire novel, an outside vampire is actively trying to kill Bella at the end of the book. And at the beginning, she was apprehensive about leaving her mom and moving in with her dad. The love story was mostly in the middle. So I wondered if I could see if the vibe was changing throughout the story and how.</p>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="do">##In order to get in a sort of "over time" format, I reformatted by page instead of by word. </span></span>
-<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>tw1_sentiment_page <span class="ot">&lt;-</span> tw1_sentiment <span class="sc">%&gt;%</span> <span class="fu">count</span>(page, sentiment) </span>
-<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(tw1_sentiment_page)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
-<pre><code># A tibble: 6 × 3
-   page sentiment     n
-  &lt;int&gt; &lt;chr&gt;     &lt;int&gt;
-1     2 negative      7
-2     2 positive      5
-3     3 negative      4
-4     3 positive      5
-5     4 negative     10
-6     4 positive      7</code></pre>
-</div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="do">##Now I can see how mnany negatives and positives per page, but I want to know if each page is overall negative or positive. </span></span>
-<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>tw1_sentiment_score <span class="ot">&lt;-</span> tw1_sentiment_page <span class="sc">%&gt;%</span> <span class="fu">mutate</span>(<span class="at">value =</span> <span class="fu">if_else</span>(sentiment <span class="sc">==</span> <span class="st">"positive"</span>, n, <span class="sc">-</span>n)) <span class="sc">%&gt;%</span></span>
-<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">group_by</span>(page) <span class="sc">%&gt;%</span> </span>
-<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">summarise</span>(<span class="at">score =</span> <span class="fu">sum</span>(value), <span class="at">.groups =</span> <span class="st">"drop"</span>)</span>
-<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(tw1_sentiment_score)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
-<pre><code># A tibble: 6 × 2
-   page score
-  &lt;int&gt; &lt;int&gt;
-1     2    -2
-2     3     1
-3     4    -3
-4     5    -3
-5     6    -5
-6     7     4</code></pre>
-</div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="do">##To visualize how sentiment changed over time, I made a bar graph. </span></span>
-<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(tw1_sentiment_score, <span class="fu">aes</span>(<span class="at">x =</span> page, <span class="at">y =</span> score, <span class="at">fill =</span> score <span class="sc">&gt;</span> <span class="dv">0</span>)) <span class="sc">+</span></span>
-<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_col</span>() <span class="sc">+</span> </span>
-<span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> <span class="dv">0</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="do">##Starting with looking at the percent vaccinated over time for each race/ethnicity </span></span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(rsv_preg_data, <span class="fu">aes</span>(<span class="at">x =</span> Week_Ending_Date, <span class="at">y =</span> Percent_Vaxed, <span class="at">color =</span>  <span class="st">`</span><span class="at">Race and Ethnicity</span><span class="st">`</span>)) <span class="sc">+</span></span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_point</span>() <span class="sc">+</span> </span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_line</span>(<span class="fu">aes</span>(<span class="at">group =</span> <span class="st">`</span><span class="at">Race and Ethnicity</span><span class="st">`</span>)) <span class="sc">+</span></span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme</span>(<span class="at">axis.text.x =</span> <span class="fu">element_text</span>(<span class="at">angle =</span> <span class="dv">90</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="data-exercise_files/figure-html/unnamed-chunk-5-1.png" class="img-fluid figure-img" width="672"></p>
+<p><img src="cdcdata-exercise_files/figure-html/unnamed-chunk-3-1.png" class="img-fluid figure-img" width="672"></p>
 </figure>
 </div>
 </div>
 </div>
-<p>Oof, okay. Well, looking at this chart, I cannot discern any pattern of more negative at the start and end, but more positive in the middle. It looks mostly negative throughout. Reading it I really remember more the love story, but maybe that’s because I’m a fan. I’ll have to read it again.</p>
+<p>It seems for all races and ethnicities, the percent of vaccinated mothers increases over time but then begins to plateau toward the end of the sampled dates. The overall line (the sum of all the race/ethnic groups) also follows this trend.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="do">##Now looking at for each time point, what proportion of the total number vaccinated pregnant women make up each race/ethnicity. Excluding the overall, since that is the total for all groups.</span></span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(rsv_preg_data <span class="sc">%&gt;%</span> <span class="fu">filter</span>(<span class="st">`</span><span class="at">Race and Ethnicity</span><span class="st">`</span> <span class="sc">!=</span> <span class="st">"Overall"</span>), <span class="fu">aes</span>(<span class="at">x =</span> Week_Ending_Date, <span class="at">y =</span> Percent_of_total_vax, <span class="at">fill =</span> <span class="st">`</span><span class="at">Race and Ethnicity</span><span class="st">`</span>)) <span class="sc">+</span></span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_bar</span>(<span class="at">position =</span> <span class="st">"fill"</span>, <span class="at">stat =</span> <span class="st">"identity"</span>) <span class="sc">+</span></span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>   <span class="fu">scale_y_continuous</span>(<span class="at">labels =</span> scales<span class="sc">::</span>percent)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Warning: Removed 8 rows containing missing values or values outside the scale range
+(`geom_bar()`).</code></pre>
+</div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="cdcdata-exercise_files/figure-html/unnamed-chunk-4-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>From this graph, the percent of vaccinated mothers from each race/ethnic group on each date is not constant. Looking at both this graph and the previous plot, it appears that the “Black, NH” Race and Ethnicity has the lowest number of pregnant mothers getting vaccinated, consistently. “Asian, NH” seems to be the fastest growing number of women getting vaccinatedand “White, NH” is most vaccinated.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="do">##At this point, I want to see the overall stats, for ease of not having to search for the totals in the whole table, not the race/ethnicity specific stats, so I'm going to make a new data frame </span></span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>rsv_preg_overall <span class="ot">&lt;-</span> rsv_preg_data <span class="sc">%&gt;%</span> <span class="fu">filter</span>(<span class="st">`</span><span class="at">Race and Ethnicity</span><span class="st">`</span> <span class="sc">==</span> <span class="st">"Overall"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">select</span>(<span class="sc">-</span><span class="st">`</span><span class="at">Race and Ethnicity</span><span class="st">`</span>, <span class="sc">-</span>Percent_of_total_vax)</span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(rsv_preg_overall)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 6 × 4
+  Week_Ending_Date    Percent_Vaxed Total_Preg Number_Vax
+  &lt;dttm&gt;                      &lt;dbl&gt;      &lt;dbl&gt;      &lt;dbl&gt;
+1 2023-09-30 00:00:00           0        18580        0  
+2 2023-10-07 00:00:00           0.1      21237       21.2
+3 2023-10-14 00:00:00           0.1      23849       23.8
+4 2023-10-21 00:00:00           0.3      26555       79.7
+5 2023-10-28 00:00:00           0.6      29206      175. 
+6 2023-11-04 00:00:00           1.1      31842      350. </code></pre>
+</div>
+</div>
+<p>I find it interesting that, according to this table, the percent of totally pregnant women vaccinated for RSV does not exceed 17.80% in this dataset and appears to be plateuing, I wonder WHY people are not wanting the RSV vaccine.</p>
 
 
 
