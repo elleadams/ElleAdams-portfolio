@@ -81,3 +81,99 @@ head(rsv_preg_overall)
 ```
 
 I find it interesting that, according to this table, the percent of totally pregnant women vaccinated for RSV does not exceed 17.80% in this dataset and appears to be plateuing, I wonder WHY people are not wanting the RSV vaccine. 
+
+# This section contributed by Riley Herber
+
+```{r}
+# Creating a synthetic dataset that mimics the original real data
+
+syn_dat <- data.frame( 
+    week_ending_date = as.Date(rep(NA, 171)),
+    race_and_ethnicity = numeric(171),
+    percent_vaxed = numeric(171),
+    total_preg = numeric(171),
+    number_vax = numeric(171),
+    precent_of_total_vax = numeric(171)
+)
+
+```
+
+The following cell block was generatdeusing AI tools, which was then modified to get desired outcomes.
+
+The original prompt was:
+
+I want to to create a synthetic data set that represents the Weekly Respiratory Syncytial Virus (RSV) Vaccination Coverage among Pregnant Women by Race and Ethnicity age 18-49 in 2023-2024. My data structure has the structure of:
+" syn_dat <- data.frame( week_ending_date = as.Date(rep(NA, 171)), race_and_ethnicity = numeric(171), percent_vaxed = numeric(171), total_preg = numeric(171), number_vax = numeric(171) ), numeric(171) " 
+
+And I need the characteristics of: for all races and ethnicities, the percent of vaccinated mothers increases over time but then begins to plateau toward the end of the sampled dates. The overall line (the sum of all the race/ethnic groups) also follows this trend. The percent of vaccinated mothers from each race/ethnic group on each date is not constant. Looking at both this graph and the previous plot, it appears that the "Black, NH" Race and Ethnicity has the lowest number of pregnant mothers getting vaccinated, consistently. "Asian, NH" seems to be the fastest growing number of women getting vaccinatedand "White, NH" is most vaccinated. The percent of totally pregnant women vaccinated for RSV does not exceed 17.80% in this dataset and appears to be plateuing"
+
+I wanted to put in the information given to me from the previouse analysis of the original dataset without giving AI the actual data. This was probably not the most optimally engeneered prompt, but it output the code below. 
+
+I then modified values like the adding all of the race and ethnicity categories, modifying the number of weeks, the noise levels, and some of the logistic equations to make the graphical output more similar ot the original.
+```{r}
+
+set.seed(123)
+
+# Weekly dates
+dates <- seq.Date(as.Date("2023-01-07"), by = "week", length.out = 27)
+
+races <- c("White, NH", "Black, NH", "Asian, NH", 
+           "Hispanic", "Multiple/Other", 
+           "American Indian", 
+           "Native Hawaiian/Pacific Islander", 
+           "Unknown")
+
+syn_dat <- do.call(rbind, lapply(races, function(r) {
+  
+  t <- 1:length(dates)
+  
+  percent <- switch(r,
+    "White, NH"  = 0.18 / (1 + exp(-0.15 * (t - 20))),
+    "Black, NH"  = 0.10 / (1 + exp(-0.10 * (t - 22))),
+    "Asian, NH"  = 0.2 / (1 + exp(-0.20 * (t - 18))),  # fastest growth
+    "Hispanic"   = 0.150 / (1 + exp(-0.13 * (t - 21))),
+    "Multiple/Other" = 0.140 / (1 + exp(-0.12 * (t - 22))),
+    "American Indian" = 0.120 / (1 + exp(-0.11 * (t - 23))),
+    "Native Hawaiian/Pacific Islander" = 0.130 / (1 + exp(-0.14 * (t - 21))),
+    "Unknown" = 0.100 / (1 + exp(-0.09 * (t - 24)))
+  )
+  
+  # Add week-to-week noise
+  percent <- percent + rnorm(length(percent), 0, 0.002)
+  percent[percent < 0] <- 0
+  percent[percent > 0.178] <- 0.178
+  
+  total_preg <- round(runif(length(dates), 8000, 20000))
+  number_vax <- round(total_preg * percent)
+  percent_of_total_vax = round(100 * number_vax / total_preg, 1)
+  
+  data.frame(
+    week_ending_date = dates,
+    race_and_ethnicity = r,
+    percent_vaxed = percent,
+    total_preg = total_preg,
+    number_vax = number_vax,
+    percent_of_total_vax = percent_of_total_vax
+  )
+}))
+
+```
+
+```{r}
+# Same code used as before, just changed the names to match the new synthetic data variables
+ggplot(syn_dat, aes(x = week_ending_date, y = percent_vaxed, color = race_and_ethnicity)) +
+  geom_point() + 
+  geom_line(aes(group = race_and_ethnicity)) +
+  theme(axis.text.x = element_text(angle = 90))
+```
+
+
+```{r}
+ggplot(syn_dat, aes(x = week_ending_date, y = percent_of_total_vax, fill = race_and_ethnicity)) +
+  geom_bar(position = "fill", stat = "identity") +
+   scale_y_continuous(labels = scales::percent)
+```
+
+I was unable to make the Percent of total vaxenated values match the original dataset. In the original dataset, White, NH total vaxination precentage can get up to 75% in some weeks, but if I tried to edit my values to match that, the percent vaxed variable would no longer reflect the same trends seen in the original line graph figure. I think this must me because my "percent_of_total_vax" is dependent on my "percent_vax" variable. Maybe I dont understand the difference between these variables in the original dataset, because I would assume they would have to reflect one another. 
+
+The line graph for the synthetic data matches the original data quite well, with the Asian Race having the highest percent vaxxed, the White race being second, and the Black and Native American races having some of the lowest percent vaxxed.
