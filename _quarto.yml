@@ -17,7 +17,9 @@ website:
           - text: "Week 4 Data Exercise"
             file: data-exercise/data-exercise.qmd
           - text: "Data Analysis Exercise"
-            file: cdcdata-exercise/cdcdata-exercise.qmd
+            file: cdcdata-exercise/cdcdata-exercise.qmd 
+          - text: "Presentation Exercise"
+            file: presentation-exercise/presentation-exercise.qmd
     right:
       - icon: github 
         href: https://github.com/elleadams/ElleAdams-portfolio.git       

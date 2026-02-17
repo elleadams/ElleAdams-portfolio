@@ -1,0 +1,8 @@
+Presentation Exercise - FiveThirtyEight - bechdel, The Dollar-And-Cents Case Against Hollywood’s Exclusion of Women
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(tidyverse)
+library(readr)
+```
