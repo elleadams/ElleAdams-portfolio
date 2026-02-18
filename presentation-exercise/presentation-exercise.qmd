@@ -75,5 +75,8 @@ ggplot(bechdel_small, aes(x = x, y = percent, fill = clean_test, group = clean_t
     geom_segment(data = line, aes(x = xmax, xend = xmax, y = cum_percent, yend = next_y), inherit.aes = FALSE, color = "black", linewidth = 1.2, na.rm = TRUE, lineend = "round", linejoin = "round")
 ```
 
-Okay, so not perfect, but pretty damn close. The only thing I don't know how to do is change the way the key shows up on the graph, otherwise I feel pretty good about how well I was able to get it to match.  
+Okay, so not perfect, but pretty damn close. The only thing I don't know how to do is change the way the key shows up on the graph, otherwise I feel pretty good about how well I was able to get it to match. 
+
+Here was the original: 
+![](images/hickey-bechdel-11.jpeg)
 
