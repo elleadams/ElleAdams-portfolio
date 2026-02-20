@@ -92,7 +92,9 @@ ggplot(bechdel_small, aes(x = x, y = percent, fill = clean_test, group = clean_t
 Okay, so not perfect, but pretty damn close. The only thing I don't know how to do is change the way the key shows up on the graph, otherwise I feel pretty good about how well I was able to get it to match. 
 
 Here was the original: 
-![](images/hickey-bechdel-11.jpeg)
+```{r}
+knitr::include_graphics("bechdeloriginal.png")
+```
 
 Now for the table part. I think given this data, it should be a fairly basic table, the way that I think is easiest to follow is to make it wider so that there is fewer searching around for the information we want than in the original datframe. 
 
