@@ -1,0 +1,153 @@
+---
+title: "Fitting Exercise"
+---
+# Load the necessary packages
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(tidyverse)
+library(readr)
+library(tidymodels)
+library(broom.mixed)
+library(dotwhisker)
+library(Metrics)
+```
+
+# Data Processing and Exploration 
+
+```{r}
+##Read in datav
+mavo <- read_csv("fitting-exercise/Mavoglurant_A2121_nmpk.csv")
+
+##DV vs TIME plot 
+ggplot(mavo, aes(x = TIME, y = DV, group = ID)) + 
+    geom_line() +
+    geom_point() +
+    facet_wrap(~ DOSE, scales = "fixed")
+
+##Removing OCC = 2
+mavo <- mavo %>% filter(OCC == 1)
+
+##Compute sum of DV for each individual, Exclude TIME = 0
+mavo_exclude <- mavo %>% filter(TIME != 0) %>%
+    group_by(ID) %>%
+    summarize(Y = sum(DV, na.rm = TRUE))
+
+##Only include TIME == 0
+mavo_include <- mavo %>% filter(TIME == 0) 
+
+##Join the two dataframes 
+mavo_merged <- full_join(mavo_exclude, mavo_include, by = "ID")
+
+##Convert RACE and SEX to factors, keeps only: Y, DOSE, AGE, SEX, RACE, WT, HT
+mavo_final <- mavo_merged %>% mutate(RACE = factor(RACE), SEX = factor(SEX)) %>%
+    select(Y, DOSE, AGE, SEX, RACE, WT, HT)
+
+```
+
+# More exploring
+
+```{r}
+##Just so basic scatterplots and box plots
+ggplot(mavo_final, aes(x = AGE, y = Y)) + 
+    geom_point()    #looks like no relationship?
+
+ggplot(mavo_final, aes(x = SEX, y = Y)) + 
+    geom_boxplot()  #they don't look too different?
+
+ggplot(mavo_final, aes(x = RACE, y = Y)) + 
+    geom_boxplot()  #they don't look too different?
+
+ggplot(mavo_final, aes(x = WT, y = Y)) + 
+    geom_point()    #looks like no relationship?
+
+ggplot(mavo_final, aes(x = HT, y = Y)) + 
+    geom_point()    #looks like no relationship?
+
+ggplot(mavo_final, aes(x = DOSE, y = Y, group = DOSE)) + 
+    geom_boxplot()  #this doesn't surprise me, looks proportional?
+```
+
+# Model Fitting 
+
+```{r}
+##Y as outcome, DOSE as predictor
+lm_yd <- linear_reg()
+lm_yd_fit <- lm_yd %>% fit(Y ~ DOSE, data = mavo_final)
+tidy(lm_yd_fit)
+tidy(lm_yd_fit) %>% dwplot()
+mean_pred_yd <- predict(lm_yd_fit, new_data = mavo_final)
+conf_int_pred_yd <- predict(lm_yd_fit, new_data = mavo_final, type = "conf_int")
+predict_yd <- mavo_final %>% bind_cols(mean_pred_yd) %>% 
+    bind_cols(conf_int_pred_yd)
+ggplot(predict_yd, aes(x = DOSE)) + 
+    geom_point(aes(y = .pred)) + 
+    geom_errorbar(aes(ymin = .pred_lower, ymax = .pred_upper))
+metrics_yd <- predict_yd %>% metrics(truth = Y, estimate = .pred) %>%
+  filter(.metric %in% c("rmse", "rsq")) #this part I had to get help from chatgpt to figure out
+print(metrics_yd)
+
+```
+
+The RMSE for this model is 666.46, meaning it's predictions of Y are typically about 666.46 units away from the true Y measured. 
+The R-squared is 0.516, meaning the explains only 51.6% of the variation in Y. Typically, i would say that this means it's not a great model, but I don't even know anymore.  
+
+```{r}
+##Y as outcome, all variables as predictors
+lm_y_all <- linear_reg()
+lm_y_all_fit <- lm_y_all %>% fit(Y ~ DOSE + AGE + SEX + RACE + WT + HT, data = mavo_final)
+tidy(lm_y_all_fit)
+tidy(lm_y_all_fit) %>% dwplot()
+mean_pred_y_all <- predict(lm_y_all_fit, new_data = mavo_final)
+conf_int_pred_y_all <- predict(lm_y_all_fit, new_data = mavo_final, type = "conf_int")
+predict_y_all <- mavo_final %>% bind_cols(mean_pred_y_all) %>% 
+    bind_cols(conf_int_pred_y_all)
+metrics_y_all <- predict_y_all %>% metrics(truth = Y, estimate = .pred) %>%
+  filter(.metric %in% c("rmse", "rsq")) 
+print(metrics_y_all)
+
+```
+
+The RMSE for this model is 590.85, meaning it's predictions of Y are typically about 590.85 units away from the true Y measured. 
+The R-squared is 0.619, meaning the explains only 61.9% of the variation in Y. Typically, i would say that this means it's not a great model, but it does seem to explain more and have closer predictions that the previous model, which makes sense because this one account for the effects of all possible predictors. 
+
+```{r}
+##SEX as outcome, DOSE as predictor
+log_sex_dose <- logistic_reg() %>% set_engine("glm")
+log_sex_dose_fit <- log_sex_dose %>% fit(SEX ~ DOSE, data = mavo_final)
+tidy(log_sex_dose_fit)
+tidy(log_sex_dose_fit) %>% dwplot()
+class_pred_sex_dose <- predict(log_sex_dose_fit, new_data = mavo_final, type = "class")
+prob_pred_sex_dose <- predict(log_sex_dose_fit, new_data = mavo_final, type = "prob")
+predict_sex_dose <- mavo_final %>% bind_cols(class_pred_sex_dose) %>%
+    bind_cols(prob_pred_sex_dose)
+event_class <- levels(mavo_final$SEX)[2]  
+event_prob_col <- rlang::sym(paste0(".pred_", event_class))
+metrics_sex_dose <- yardstick::metric_set(yardstick::accuracy, yardstick::roc_auc)(predict_sex_dose, truth = SEX, estimate = .pred_class, !!event_prob_col, event_level = "second") #this part I had to get help from chatgpt to figure out
+print(metrics_sex_dose)
+
+```
+
+The model’s accuracy is 0.867, meaning 86.7% of observations were classified correctly. 
+The ROC AUC is 0.592, indicating a pretty weak ability to distinguish between the two SEX categories, which is interesting. 
+
+```{r}
+##SEX as outcome, all variables as predictors
+log_sex_all <- logistic_reg() %>% set_engine("glm")
+log_sex_all_fit <- log_sex_dose %>% fit(SEX ~ DOSE + AGE + Y + RACE + WT + HT, data = mavo_final)
+tidy(log_sex_all_fit)
+tidy(log_sex_all_fit) %>% dwplot()
+class_pred_sex_all <- predict(log_sex_all_fit, new_data = mavo_final, type = "class")
+prob_pred_sex_all <- predict(log_sex_all_fit, new_data = mavo_final, type = "prob")
+predict_sex_all <- mavo_final %>% bind_cols(class_pred_sex_all) %>%
+    bind_cols(prob_pred_sex_all)
+event_class <- levels(mavo_final$SEX)[2]  
+event_prob_col <- rlang::sym(paste0(".pred_", event_class))
+metrics_sex_all <- yardstick::metric_set(yardstick::accuracy, yardstick::roc_auc)(predict_sex_all, truth = SEX, estimate = .pred_class, !!event_prob_col, event_level = "second")
+print(metrics_sex_all)
+
+```
+
+The model’s accuracy is 0.942, meaning 94.2% of observations were classified correctly. 
+The ROC AUC is 0.980, indicating a good ability to distinguish between the two SEX categories, which is significantly better than the previous model, which normally I would say makes sense since we are accounting for all the predictors, but with the outcome being SEX, I'm not really sure what this means. 
