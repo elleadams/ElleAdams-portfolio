@@ -18,7 +18,7 @@ library(Metrics)
 
 ```{r}
 ##Read in datav
-mavo <- read_csv("fitting-exercise/Mavoglurant_A2121_nmpk.csv")
+mavo <- read_csv("Mavoglurant_A2121_nmpk.csv")
 
 ##DV vs TIME plot 
 ggplot(mavo, aes(x = TIME, y = DV, group = ID)) + 
