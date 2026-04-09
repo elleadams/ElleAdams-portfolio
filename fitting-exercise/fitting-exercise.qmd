@@ -12,13 +12,14 @@ library(tidymodels)
 library(broom.mixed)
 library(dotwhisker)
 library(Metrics)
+library(yardstick)
 ```
 
 # Data Processing and Exploration 
 
 ```{r}
 ##Read in datav
-mavo <- read_csv("Mavoglurant_A2121_nmpk.csv")
+mavo <- read_csv("fitting-exercise/Mavoglurant_A2121_nmpk.csv")
 
 ##DV vs TIME plot 
 ggplot(mavo, aes(x = TIME, y = DV, group = ID)) + 
@@ -151,3 +152,155 @@ print(metrics_sex_all)
 
 The model’s accuracy is 0.942, meaning 94.2% of observations were classified correctly. 
 The ROC AUC is 0.980, indicating a good ability to distinguish between the two SEX categories, which is significantly better than the previous model, which normally I would say makes sense since we are accounting for all the predictors, but with the outcome being SEX, I'm not really sure what this means. 
+
+# Module 10 
+
+Set seed value
+
+```{r}
+rngseed <- 1234
+
+```
+
+# Data Prep
+
+```{r}
+##Remove RACE
+mavo_final2 <- mavo_final %>% select(Y, DOSE, AGE, SEX, WT, HT)
+
+##Set seed
+set.seed(rngseed)
+
+##Split sample
+data_split <- initial_split(mavo_final2, prop = 0.75)
+train_data <- training(data_split)
+test_data  <- testing(data_split)
+
+```
+
+# Model 1
+
+```{r}
+##Same as previously, but using training data for fitting
+##Y as outcome, DOSE as predictor
+lm_yd1 <- linear_reg()
+lm_yd_fit1 <- lm_yd1 %>% fit(Y ~ DOSE, data = train_data)
+tidy(lm_yd_fit1)
+tidy(lm_yd_fit1) %>% dwplot()
+mean_pred_yd1 <- predict(lm_yd_fit1, new_data = train_data)
+conf_int_pred_yd1 <- predict(lm_yd_fit1, new_data = train_data, type = "conf_int")
+predict_yd1 <- train_data %>% bind_cols(mean_pred_yd1) %>% 
+    bind_cols(conf_int_pred_yd1)
+ggplot(predict_yd1, aes(x = DOSE)) + 
+    geom_point(aes(y = .pred)) + 
+    geom_errorbar(aes(ymin = .pred_lower, ymax = .pred_upper))
+metrics_yd1 <- predict_yd1 %>% metrics(truth = Y, estimate = .pred) %>%
+  filter(.metric %in% c("rmse", "rsq")) 
+print(metrics_yd1)
+
+```
+
+As it's supposed to be, RMSE is 703.
+
+# Model 2 
+
+```{r}
+##Same as previously, but using training data for fitting
+##Y as outcome, all variables as predictors
+lm_y_all2 <- linear_reg()
+lm_y_all_fit2 <- lm_y_all2 %>% fit(Y ~ DOSE + AGE + SEX + WT + HT, data = train_data)
+tidy(lm_y_all_fit2)
+tidy(lm_y_all_fit2) %>% dwplot()
+mean_pred_y_all2 <- predict(lm_y_all_fit2, new_data = train_data)
+conf_int_pred_y_all2 <- predict(lm_y_all_fit2, new_data = train_data, type = "conf_int")
+predict_y_all2 <- train_data %>% bind_cols(mean_pred_y_all2) %>% 
+    bind_cols(conf_int_pred_y_all2)
+metrics_y_all2 <- predict_y_all2 %>% metrics(truth = Y, estimate = .pred) %>%
+  filter(.metric %in% c("rmse", "rsq")) 
+print(metrics_y_all2)
+
+```
+
+As it's supposed to be, RMSE is 627.
+
+# Null Model 
+
+```{r}
+##Null model, but using training data for fitting
+##Y as outcome, NO predictors
+null <- null_model() %>% set_mode("regression")
+null_fit <- null %>% fit(Y ~ ., data = train_data)
+predict_null <- predict(null_fit, new_data = train_data) %>% 
+    bind_cols(train_data %>% select(Y))
+metrics_null <- predict_null %>% metrics(truth = Y, estimate = .pred) %>%
+  filter(.metric %in% "rmse") 
+print(metrics_null)
+
+```
+
+As it's supposed to be, RMSE is 948. 
+
+# 10-fold Cross Validation
+
+```{r}
+##Set seed again
+set.seed(rngseed)
+##Cross-validation folds
+cv_folds <- vfold_cv(train_data, v = 10)
+
+```
+
+# CV for Model 1 
+
+```{r}
+cv_model1 <- fit_resamples(lm_yd1, Y ~ DOSE, resamples = cv_folds)
+cv_model1_metrics <- collect_metrics(cv_model1) 
+print(cv_model1_metrics)
+
+```
+
+RMSE is now 691, different from before. 
+
+# CV for Model 2
+
+```{r}
+cv_model2 <- fit_resamples(lm_y_all2, Y ~ DOSE + AGE + SEX + WT + HT, resamples = cv_folds)
+cv_model2_metrics <- collect_metrics(cv_model2) 
+print(cv_model2_metrics)
+
+```
+
+RMSE is 646, different from before.
+
+# CV for Null Model 
+
+```{r}
+cv_model_null <- fit_resamples(null, Y ~ ., resamples = cv_folds)
+cv_model_null_metrics <- collect_metrics(cv_model_null) 
+print(cv_model_null_metrics)
+```
+
+RMSE is 933, different from before. 
+
+# Repeat with new seed
+
+```{r}
+set.seed(999)
+
+cv_folds_alt <- vfold_cv(train_data, v = 10)
+
+cv_model1_alt <- fit_resamples(lm_yd1, Y ~ DOSE, resamples = cv_folds_alt)
+cv_model1_alt_metrics <- collect_metrics(cv_model1_alt) 
+print(cv_model1_alt_metrics)
+
+cv_model2_alt <- fit_resamples(lm_y_all2, Y ~ DOSE + AGE + SEX + WT + HT, resamples = cv_folds_alt)
+cv_model2_alt_metrics <- collect_metrics(cv_model2_alt) 
+print(cv_model2_alt_metrics)
+
+cv_model_null_alt <- fit_resamples(null, Y ~ ., resamples = cv_folds_alt)
+cv_model_null_alt_metrics <- collect_metrics(cv_model_null_alt) 
+print(cv_model_null_alt_metrics)
+
+```
+
+Now changed to 705, 648, and 933. 
