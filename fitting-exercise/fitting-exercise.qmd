@@ -304,3 +304,81 @@ print(cv_model_null_alt_metrics)
 ```
 
 Now changed to 705, 648, and 933. 
+
+# Part 2 - for this part, I got behind and so did this module late, I think I was supposed to contribute to MR repository, but because I was late, MR just did part 2 for their own work, so I will do the same here to not bother anyone else with my lateness. 
+
+# Model Predictions 
+
+```{r}
+##Create model predictions
+predict_model1 <- predict_yd1 %>% select(Y, .pred) %>%
+    mutate(model = "Model 1: DOSE")
+
+predict_model2 <- predict_y_all2 %>% select(Y, .pred) %>%
+  mutate(model = "Model 2: All predictors")
+
+predict_null_model <- predict_null %>% select(Y, .pred) %>%
+  mutate(model = "Null model")
+
+##Make Prediction Dataframe
+predicted_df <- bind_rows(predict_model1, predict_model2, predict_null_model)
+
+##Plot predicted vs observed
+ggplot(predicted_df, aes(x = Y, y = .pred, color = model, shape = model)) +
+  geom_point(size = 2, alpha = 0.7) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
+  coord_cartesian(xlim = c(0, 5000), ylim = c(0, 5000)) +
+  labs(x = "Observed values", y = "Predicted values", title = "Observed vs Predicted Values")
+```
+
+As expected, model 2 is the best, but still lots of scatter. 
+
+# Plot residuals 
+
+```{r}
+residuals_df <- predict_y_all2 %>% mutate(residual = .pred - Y)
+max_abs_resid <- max(abs(residuals_df$residual))
+
+ggplot(residuals_df, aes(x = .pred, y = residual)) +
+  geom_point(size = 2, alpha = 0.7) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  coord_cartesian(ylim = c(-max_abs_resid, max_abs_resid)) +
+  labs(x = "Predicted values", y = "Residuals (predicted - observed)", title = "Residual Plot for Model 2")
+
+```
+
+As expected, there are more and higher negative values that positive ones. 
+
+# Model Predictions and Uncertainty
+
+```{r}
+##Reset seed
+set.seed(rngseed)
+
+##Create bootstrap
+dat_bs <- bootstraps(train_data, times = 100)
+
+##Predictions - definitely had to ask chatgpt for some help here, I was lost on it for a little while 
+pred_bs <- matrix(NA, nrow = 100, ncol = nrow(train_data))
+for (i in 1:100) {
+  dat_sample <- rsample::analysis(dat_bs$splits[[i]])
+  fit_bs <- linear_reg() %>%
+    set_engine("lm") %>%
+    fit(Y ~ DOSE + AGE + SEX + WT + HT, data = dat_sample)
+  pred_bs[i, ] <- predict(fit_bs, train_data)$.pred}
+preds <- pred_bs |> apply(2, quantile,  c(0.055, 0.5, 0.945)) |>  t() %>% as.data.frame()
+
+##Observed and original estimates?
+colnames(preds) <- c("lower", "median", "upper")
+preds <- preds %>% mutate(observed = train_data$Y, point_est = predict_y_all2$.pred)
+
+##Plot
+ggplot(preds, aes(x = observed)) +
+  geom_point(aes(y = point_est), color = "black", alpha = 0.6) +
+  geom_point(aes(y = median), shape = 1) +
+  geom_errorbar(aes(ymin = lower, ymax = upper), width = 0) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
+  coord_cartesian(xlim = c(0, 5000), ylim = c(0, 5000)) +
+  labs(x = "Observed values", y = "Predicted values", title = "Predictions with Bootstrap Intervals") 
+
+```
