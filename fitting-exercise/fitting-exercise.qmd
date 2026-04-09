@@ -382,3 +382,43 @@ ggplot(preds, aes(x = observed)) +
   labs(x = "Observed values", y = "Predicted values", title = "Predictions with Bootstrap Intervals") 
 
 ```
+
+# Part 3 
+
+# Final evaluation using test data (model 2)
+
+```{r}
+##Make predictions from fit model 2 with test data
+test_predict2 <- predict(lm_y_all_fit2, new_data = test_data) %>% bind_cols(test_data) %>%
+  mutate(dataset = "Test")
+metrics_test2 <- test_predict2 %>% metrics(truth = Y, estimate = .pred) %>%
+  filter(.metric %in% c("rmse", "rsq")) 
+print(metrics_test2)
+
+train_predict2 <- predict_model2 %>% mutate(dataset = "Train")
+```
+
+RMSE for the test data is 520, which lower than that from the training data. 
+
+# Plot
+
+```{r}
+##Make this easier to do by combining them 
+combined_predict2 <- bind_rows(train_predict2, test_predict2)
+##Plot
+ggplot(combined_predict2, aes(x = Y, y = .pred, color = dataset, shape = dataset)) +
+  geom_point(size = 2, alpha = 0.7) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
+  coord_cartesian(xlim = c(0, 5000), ylim = c(0, 5000)) +
+  labs(x = "Observed values", y = "Predicted values", title = "Predicted vs Observed: Training and Test Data")
+
+```
+
+As expected, the observed/predicted values for the test data are mixed in with the train data. 
+
+# Discussion points 
+1 - "We want to make sure that any model we have performs better than the null model. Is that the case?" - Yes, the null model RMSE is in the 900s each time, and the RMSEs for both model 1 and model 2 are lower, indicating they perform better. 
+
+2 - "Does model 1 with only dose in the model improve results over the null model? Do the results make sense? Would you consider this model “usable” for any real purpose?" - Yes it does, I think I would call it usable in that it is bette than the null model but not quite as good as model 2 because it does not factor in the complexity of all of the other predictors as influences over the outcome. It might be good if you were specifically interested in dose as a predictor, while keeping in mind that it is not the only factor involved. 
+
+3 - "Does model 2 with all predictors further improve results? Do the results make sense? Would you consider this model “usable” for any real purpose?" - Yes it does improve results, which makes sense because it acounts for several other predictors that can influence the results, making it a better representation of reality. I think it could be a usable model, although now that I'm thinking about it, more data would be helpful to truly evaluate how useful it and model 1 can really be. 
