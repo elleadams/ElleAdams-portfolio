@@ -26,7 +26,7 @@ rngseed <- 1234
 set.seed(rngseed)
 
 ##Load in dsts
-mavo_final <- read_rds("ml-models-exercise/mavo_final.rds")
+mavo_final <- read_rds("mavo_final.rds")
 
 ##Recoding RACE variable
 mavo_final$RACE <- recode(mavo_final$RACE, `7` = 3, `88` = 3, `1` = 1, `2` = 2)
@@ -153,7 +153,7 @@ app_resamples <- apparent(mavo_final)
 
 lasso_tune_res <- tune_grid(lasso_tune_wf, resamples = app_resamples, grid = lasso_grid, metrics = metric_set(yardstick::rmse))
 
-autoplot(lasso_tune_res) ###Error saying "Only one observation per metric was present. Unable to create meaningful plot."
+#autoplot(lasso_tune_res) ###Error saying "Only one observation per metric was present. Unable to create meaningful plot."
 
 ##Now do the Random Forest Model
 rf_tune <- rand_forest(trees = 300, mtry = tune(), min_n = tune()) %>% set_engine("ranger", seed = rngseed) %>% set_mode("regression")
@@ -164,7 +164,7 @@ rf_grid <- grid_regular(mtry(range = c(1, 7)), min_n(range = c(1, 21)), levels =
 
 rf_tune_res <- tune_grid(rf_tune_wf, resamples = app_resamples, grid = rf_grid, metrics = metric_set(yardstick::rmse))
 
-autoplot(rf_tune_res) ###Error saying "Only one observation per metric was present. Unable to create meaningful plot."
+#autoplot(rf_tune_res) ###Error saying "Only one observation per metric was present. Unable to create meaningful plot."
 ```
 
 Okay the autoplot function gave me the same error twice and google and chatgpt both are telling me that using CV will fix this problem, which I think is going to be the purpose of the next part, so for now I will leave this as is?
