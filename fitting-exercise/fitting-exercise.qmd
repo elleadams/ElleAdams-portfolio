@@ -47,6 +47,10 @@ mavo_final <- mavo_merged %>% mutate(RACE = factor(RACE), SEX = factor(SEX)) %>%
 
 ```
 
+```{r}
+write_rds(mavo_final, file = "mavo_final.rds")
+```
+
 # More exploring
 
 ```{r}

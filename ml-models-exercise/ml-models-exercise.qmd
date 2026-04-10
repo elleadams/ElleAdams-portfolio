@@ -1,0 +1,193 @@
+---
+title: "Machine Learning"
+---
+# Load the necessary packages
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(tidyverse)
+library(readr)
+library(tidymodels)
+library(broom.mixed)
+library(dotwhisker)
+library(Metrics)
+library(yardstick)
+library(corrplot)
+library(glmnet)
+library(ranger)
+```
+
+# Set up
+
+```{r}
+##Set seed
+rngseed <- 1234
+set.seed(rngseed)
+
+##Load in dsts
+mavo_final <- read_rds("ml-models-exercise/mavo_final.rds")
+
+##Recoding RACE variable
+mavo_final$RACE <- recode(mavo_final$RACE, `7` = 3, `88` = 3, `1` = 1, `2` = 2)
+
+mavo_final <- mavo_final %>% mutate(RACE = factor(RACE))
+
+```
+
+# Pairwise Correlation 
+
+```{r}
+##Pairwise correlation for continuous variables, also need to remove Y because its the outcome
+continuous_mavo <- mavo_final %>% select(where(is.numeric)) %>% select(-Y)
+
+cor_mat <- cor(continuous_mavo)
+
+corrplot(cor_mat, method = "color")
+
+```
+
+As expected, some things (like weight and hieght) are correlated, but not too strongly, so colinearity shouldnt be a problem. 
+
+# Feature Engineering
+
+```{r}
+##Add BMI column (Best guess looking at heights and weights, I think weights is currently in kg and heights currently in meters), formula for BMI = weight(kg) / (height(m))^2
+mavo_final <- mavo_final %>% mutate(BMI = WT / (HT*HT))
+
+```
+
+# First Model - Linear Regression
+
+```{r}
+lm_mavo <- linear_reg() %>% set_engine("lm")
+lm_mavo_fit <- lm_mavo %>% fit(Y ~ DOSE + AGE + SEX + RACE + WT + HT, data = mavo_final)
+tidy(lm_mavo_fit)
+tidy(lm_mavo_fit) %>% dwplot()
+mean_pred_mavo <- predict(lm_mavo_fit, new_data = mavo_final)
+conf_int_pred_mavo <- predict(lm_mavo_fit, new_data = mavo_final, type = "conf_int")
+predict_mavo <- mavo_final %>% bind_cols(mean_pred_mavo) %>% 
+    bind_cols(conf_int_pred_mavo)
+metrics_mavo <- predict_mavo %>% metrics(truth = Y, estimate = .pred) %>%
+  filter(.metric %in% c("rmse", "rsq")) 
+print(metrics_mavo)
+
+#Make observed vs predicted plot
+predict_model1 <- predict_mavo %>% select(Y, .pred) %>%
+    mutate(model = "Model 1: LM")
+
+##Plot predicted vs observed
+ggplot(predict_model1, aes(x = Y, y = .pred, color = model, shape = model)) +
+  geom_point(size = 2, alpha = 0.7) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
+  coord_cartesian(xlim = c(0, 5000), ylim = c(0, 5000)) +
+  labs(x = "Observed values", y = "Predicted values", title = "Observed vs Predicted Values")
+```
+
+RMSE 592. 
+
+# Second Model - LASSO
+
+```{r}
+lasso_mavo <- linear_reg(penalty = 0.1, mixture = 1) %>% set_engine("glmnet")
+lasso_mavo_fit <- lasso_mavo %>% fit(Y ~ DOSE + AGE + SEX + RACE + WT + HT, data = mavo_final)
+tidy(lasso_mavo_fit)
+tidy(lasso_mavo_fit) %>% dwplot()
+predict_mavo2 <- predict(lasso_mavo_fit, new_data = mavo_final) %>% bind_cols(mavo_final %>% select(Y))
+metrics_mavo2 <- predict_mavo2 %>% metrics(truth = Y, estimate = .pred) %>%
+  filter(.metric %in% c("rmse", "rsq")) 
+print(metrics_mavo2)
+
+#Make observed vs predicted plot
+predict_model2 <- predict_mavo2 %>% select(Y, .pred) %>%
+    mutate(model = "Model 2: LASSO")
+
+##Plot predicted vs observed
+ggplot(predict_model2, aes(x = Y, y = .pred, color = model, shape = model)) +
+  geom_point(size = 2, alpha = 0.7) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
+  coord_cartesian(xlim = c(0, 5000), ylim = c(0, 5000)) +
+  labs(x = "Observed values", y = "Predicted values", title = "Observed vs Predicted Values")
+```
+
+RMSE is 592 again, as expected, it is similar to the first model. 
+
+# Third Model - Random Forest
+
+```{r}
+rf_mavo <- rand_forest() %>% set_engine("ranger", seed = rngseed) %>% set_mode("regression")
+rf_mavo_fit <- rf_mavo %>% fit(Y ~ DOSE + AGE + SEX + RACE + WT + HT, data = mavo_final)
+predict_mavo3 <- predict(rf_mavo_fit, new_data = mavo_final) %>% bind_cols(mavo_final %>% select(Y))
+metrics_mavo3 <- predict_mavo3 %>% metrics(truth = Y, estimate = .pred) %>%
+  filter(.metric %in% c("rmse", "rsq")) 
+print(metrics_mavo3)
+
+#Make observed vs predicted plot
+predict_model3 <- predict_mavo3 %>% select(Y, .pred) %>%
+    mutate(model = "Model 3: Random Forest")
+
+##Plot predicted vs observed
+ggplot(predict_model3, aes(x = Y, y = .pred, color = model, shape = model)) +
+  geom_point(size = 2, alpha = 0.7) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
+  coord_cartesian(xlim = c(0, 5000), ylim = c(0, 5000)) +
+  labs(x = "Observed values", y = "Predicted values", title = "Observed vs Predicted Values")
+```
+
+RMSE is 379, MADA website said it was supposed to be around 362, so this is pretty close. 
+Also as expected, the random forest model has values closest to the line compared to the other two models. 
+
+# Tuning Models - Without CV (BAD PRACTICE)
+
+```{r}
+##Start with LASSO Model
+recipe_all <- recipe(Y ~ ., data = select(mavo_final, where(is.numeric)))
+
+lasso_grid <- tibble(penalty = 10^seq(-5, 2, length.out = 50))
+
+lasso_tune <- linear_reg(penalty = tune(), mixture = 1) %>% set_engine("glmnet")
+
+lasso_tune_wf <- workflow() %>% add_recipe(recipe_all) %>% add_model(lasso_tune)
+
+app_resamples <- apparent(mavo_final)
+
+lasso_tune_res <- tune_grid(lasso_tune_wf, resamples = app_resamples, grid = lasso_grid, metrics = metric_set(yardstick::rmse))
+
+autoplot(lasso_tune_res) ###Error saying "Only one observation per metric was present. Unable to create meaningful plot."
+
+##Now do the Random Forest Model
+rf_tune <- rand_forest(trees = 300, mtry = tune(), min_n = tune()) %>% set_engine("ranger", seed = rngseed) %>% set_mode("regression")
+
+rf_tune_wf <- workflow() %>% add_recipe(recipe_all) %>% add_model(rf_tune)
+
+rf_grid <- grid_regular(mtry(range = c(1, 7)), min_n(range = c(1, 21)), levels = 7)
+
+rf_tune_res <- tune_grid(rf_tune_wf, resamples = app_resamples, grid = rf_grid, metrics = metric_set(yardstick::rmse))
+
+autoplot(rf_tune_res) ###Error saying "Only one observation per metric was present. Unable to create meaningful plot."
+```
+
+Okay the autoplot function gave me the same error twice and google and chatgpt both are telling me that using CV will fix this problem, which I think is going to be the purpose of the next part, so for now I will leave this as is?
+
+# Tuning with CV
+
+```{r}
+set.seed(rngseed)
+cv_resamples <- vfold_cv(mavo_final, v = 5, repeats = 5)
+
+##LASSO CV tuning first
+lasso_cv_res <- tune_grid(lasso_tune_wf, resamples = cv_resamples, grid = lasso_grid, metrics = metric_set(yardstick::rmse))
+
+autoplot(lasso_cv_res)
+
+##Now Random Forest CV tuning
+rf_cv_res <- tune_grid(rf_tune_wf, resamples = cv_resamples, grid = rf_grid, metrics = metric_set(yardstick::rmse))
+
+autoplot(rf_cv_res)
+
+collect_metrics(lasso_cv_res)
+collect_metrics(rf_cv_res)
+
+```
+
+As expected, the RMSE for LASSO does indeed look better than the RMSE for the Random Forest. 
