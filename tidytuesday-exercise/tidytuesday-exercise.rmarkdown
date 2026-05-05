@@ -1,0 +1,279 @@
+---
+title: "Tidy Tuesday Exercise"
+---
+
+```{r}
+#Load necessary packages 
+library(dplyr)
+library(ggplot2)
+library(tidyverse)
+library(readr)
+library(tidymodels)
+library(broom.mixed)
+library(dotwhisker)
+library(Metrics)
+library(yardstick)
+library(corrplot)
+library(glmnet)
+library(ranger)
+library(tidytuesdayR)
+library(kernlab)
+```
+
+Load in data - instructions from the tidytuesday github README file 
+```{r}
+#Load Tidy Tuesday 04-14-26 data
+tuesdata <- tidytuesdayR::tt_load('2026-04-14')
+beaufort_scale <- tuesdata$beaufort_scale
+birds <- tuesdata$birds
+sea_states <- tuesdata$sea_states
+ships <- tuesdata$ships
+```
+
+Look at data
+```{r}
+head(beaufort_scale)
+head(birds)
+head(sea_states)
+head(ships)
+
+```
+
+Okay, so looks like beaufort_scale and sea_states are keys, while birds and ships have actual data, and both have columns for record_id. ships has values for wind speed class and sea state class. birds has types of birds, numbers of birds, and behaviours of birds in various columns. I'll play around with the dataframes a bit more to really do the exploring bit:
+
+```{r}
+##Exploring birds
+#First - Which birds are more common?
+ggplot(birds, aes(x = species_abbreviation)) + 
+    geom_bar() + 
+    theme(plot.margin = margin(t = 10, r = 10, b = 50, l = 10), axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size = 3))
+
+#Second - How many birds per record_id?
+ggplot(birds, aes(x = as.character(record_id))) + 
+    geom_bar() +  
+    theme(plot.margin = margin(t = 10, r = 10, b = 50, l = 10), axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size = 3))
+
+
+#Third - What are the most common bird behaviors?
+birds_long <- birds %>% pivot_longer(cols = c("feeding", "sitting_on_water", "sitting_on_ice", "sitting_on_ship", "in_hand", "flying_past", "accompanying", "following_ship"), names_to = "Category", values_to = "Value")
+
+ggplot(birds_long, aes(x = Category, fill = Value)) +
+  geom_bar(position = "fill")
+
+#Fourth - Do certain birds favor certain behaviors? 
+birds_long_2 <- birds %>% pivot_longer(cols = c("n_feeding", "n_sitting_on_water", "n_sitting_on_ice", "n_flying_past", "n_accompanying", "n_following_ship"), names_to = "Category", values_to = "Value")
+
+ggplot(birds_long_2, aes(x = species_abbreviation, y = Value, fill = Category)) +
+    geom_bar(stat = "identity", position = "fill") + 
+    ylab("Proportion") + 
+    theme(plot.margin = margin(t = 10, r = 10, b = 50, l = 10), axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size = 3))
+
+#These graphs are ugly, several columns are largely NAs, and I don't know the criteria exactly for each column
+```
+
+```{r}
+##Explore ships
+#First - How often is each wind speed class? 
+ggplot(ships, aes(x = wind_speed_class)) + 
+    geom_bar()
+
+#Second - How often is each sea state class?
+ggplot(ships, aes(x = sea_state_class)) + 
+    geom_bar()
+
+#Third - What is the most common ship speed?
+ggplot(ships, aes(x = speed)) + 
+    geom_bar()
+
+#Fourth - Is there a relationship between wind speed class and sea state class? - Rsquared = 0.606, very loose relationship
+ggplot(ships, aes(x = wind_speed_class, y = sea_state_class)) + 
+    geom_point() + 
+    geom_smooth(method = "lm")
+ships_4 <- lm(sea_state_class ~ wind_speed_class, data = ships)
+summary(ships_4)$r.squared
+
+#Fifth - Is there one between wind speed class and ship speed? - 0.00357, so no
+ggplot(ships, aes(x = wind_speed_class, y = speed)) + 
+    geom_point() + 
+    geom_smooth(method = "lm")
+ships_5 <- lm(speed ~ wind_speed_class, data = ships)
+summary(ships_5)$r.squared
+
+#Sixth - Is there one between sea state class and ship speed? - 0.0113, so no
+ggplot(ships, aes(x = sea_state_class, y = speed)) + 
+    geom_point() + 
+    geom_smooth(method = "lm")
+ships_6 <- lm(speed ~ sea_state_class, data = ships)
+summary(ships_6)$r.squared
+
+#These graphs are not quite as ugly, but still several columns are largely NAs, and I don't know the criteria exactly for each column
+```
+
+Now for the question/hypothesis. Combining data from these different dataframes, I would most want to ask if ship df qualities could predict bird behaviour; however, there are a lot of NA values in the behavior, plus that would be multiple outcomes, so I think it would require each outcome to have its own set of models tested (?), so I think to stay more simplified, I will just stick to can ship speed, wind speed class, and sea state class be used to accurately predict the species of bird spotted? (species_abbreviation ~ sea_state_class + wind_speed_class + speed) (outcome ~ predictors) I predict that yes they can. 
+
+```{r}
+#Make new dataframe to make everything pretty and easy to follow, only the columns I really need in it 
+birds_ships <- birds %>% select(record_id, count) %>%
+  full_join(ships %>% select(record_id, speed, wind_speed_class, sea_state_class), by = "record_id")
+
+birds_ships <- birds_ships %>%
+  group_by(record_id, speed, wind_speed_class, sea_state_class) %>%
+  summarise(count = sum(count, na.rm = TRUE), .groups = 'drop')
+
+##Determine seed
+rngseed <- 1234
+
+##Split into train and test data
+birds_ships <- birds_ships %>% drop_na(count)
+birds_ships <- birds_ships %>% drop_na(wind_speed_class)
+birds_ships <- birds_ships %>% drop_na(sea_state_class)
+birds_ships <- birds_ships %>% drop_na(speed)
+birds_ships <- birds_ships %>% filter(count < quantile(count, 0.99, na.rm = TRUE))
+
+data_split <- initial_split(birds_ships, prop = 0.75)
+train_data <- training(data_split)
+test_data  <- testing(data_split)
+
+```
+
+Start now with the first of the three models. Starting with LASSO. Partway through the LASSO, I had to alter my question a little bit, new question is: can those same predictors predict the NUMBER of birds observed. I kept doing this multiple times and kept getting truly horribly fitting models, so I looked at the mean and standard deviations and found I had 22 data points that were more than 3 standard deviations from the mean, I considered them to be outliers, and removed them from the dataset before splitting into test and training data. 
+
+```{r}
+##Set it up - first got an error that it couldn't be character if i used linear_reg, then error that couldn't be factor if i used linear_reg, then got error that there are 1 or 0 values that I have to get rid of
+lasso_birds_ships <- linear_reg(penalty = 0.1, mixture = 1) %>% set_engine("glmnet")
+
+lasso_b_s_fit <- lasso_birds_ships %>% 
+  fit(count ~ speed + wind_speed_class + sea_state_class, 
+      data = train_data)
+
+tidy(lasso_b_s_fit)
+
+##Model Predictions
+predict_bs1 <- predict(lasso_b_s_fit, new_data = train_data) %>% bind_cols(train_data %>% select(count))
+metrics_bs1 <- predict_bs1 %>% metrics(truth = count, estimate = .pred)
+print(metrics_bs1) #rmse is 98.7, thats pretty good? but rsquared is 0.00622
+
+##Set up for CV
+set.seed(rngseed)
+cv_folds <- vfold_cv(train_data, v = 10)
+
+##Do the CV? - Hopefully to improve the metrics with training? 
+recipe_all <- recipe(count ~ speed + wind_speed_class + sea_state_class, data = train_data)
+lasso_workflow_bs1 <- workflow() %>% add_recipe(recipe_all) %>% add_model(lasso_birds_ships)
+lasso_grid_bs1 <- tibble(penalty = 10^seq(-5, 2, length.out = 50))
+lasso_bs1_tune <- linear_reg(penalty = tune(), mixture = 1) %>% set_engine("glmnet")
+lasso_tune_bs1 <- workflow() %>% add_recipe(recipe_all) %>% add_model(lasso_bs1_tune)
+lasso_cv_bs1 <- tune_grid(lasso_tune_bs1, resamples = cv_folds, grid = lasso_grid_bs1, metrics = metric_set(yardstick::rmse))
+collect_metrics(lasso_cv_bs1) #rmse is 97.1 across the board, looks like 
+
+##Pick the best version from CV 
+best_cv_bs1 <- select_best(lasso_cv_bs1, metric = "rmse")
+final_lasso_bs1 <- finalize_workflow(lasso_workflow_bs1, best_cv_bs1)
+lasso_best_bs1 <- fit(final_lasso_bs1, data = train_data)
+train_predict_bs1 <- predict(lasso_best_bs1, new_data = train_data) %>% bind_cols(train_data %>% select(count)) %>% mutate(dataset = "Train")
+metrics_train_bs1 <- train_predict_bs1 %>% metrics(truth = count, estimate = .pred)
+print(metrics_train_bs1) #rmse 98.7
+
+##Evaluate with test data
+test_predict_bs1 <- predict(lasso_best_bs1, new_data = test_data) %>% bind_cols(test_data) %>%
+  mutate(dataset = "Test")
+metrics_test_bs1 <- test_predict_bs1 %>% metrics(truth = count, estimate = .pred)
+print(metrics_test_bs1) #rmse is 91.1, but rsq is 0.000129
+
+##Plot predicted vs observed
+combined_predict_bs1 <- bind_rows(train_predict_bs1, test_predict_bs1)
+ggplot(combined_predict_bs1, aes(x = count, y = .pred, color = dataset, shape = dataset)) +
+  geom_point(size = 2, alpha = 0.7) +
+  coord_cartesian(xlim = c(0, 1250), ylim = c(0, 75)) +
+  labs(x = "Observed values", y = "Predicted values", title = "Predicted vs Observed: Training and Test Data")
+
+```
+
+I mean, the test vs train points occupy similar space, but the plot is so so flat, predicted and observed are so different, itis nowhere near a nice diagonal line. Whatever, I've spent too time on this and now I'm moving on to the next model. 
+
+Random forest model is up next: 
+
+```{r}
+##Set it up, do initial modeling
+rf_bs2 <- rand_forest() %>% set_engine("ranger", seed = rngseed) %>% set_mode("regression")
+rf_bs2_fit <- rf_bs2 %>% fit(count ~ speed + wind_speed_class + sea_state_class, data =  train_data)
+predict_bs2 <- predict(rf_bs2_fit, new_data = train_data) %>% bind_cols(train_data %>% select(count))
+metrics_bs2 <- predict_bs2 %>% metrics(truth = count, estimate = .pred) 
+print(metrics_bs2) #rmse is 96, rsq is 0.0858, so again bad
+
+#Do CV
+set.seed(rngseed)
+cv_folds <- vfold_cv(train_data, v = 10)
+recipe_all <- recipe(count ~ speed + wind_speed_class + sea_state_class, data = train_data)
+rf_bs2_tune <- rand_forest(trees = 300, mtry = tune(), min_n = tune()) %>% set_engine("ranger", seed = rngseed) %>% set_mode("regression")
+rf_bs2_tune_wf <- workflow() %>% add_recipe(recipe_all) %>% add_model(rf_bs2_tune)
+rf_bs2_grid <- grid_regular(mtry(range = c(1, 7)), min_n(range = c(1, 21)), levels = 7)
+rf_cv_bs2 <- tune_grid(rf_bs2_tune_wf, resamples = cv_folds, grid = rf_bs2_grid, metrics = metric_set(yardstick::rmse))
+collect_metrics(rf_cv_bs2) #Looks like 96.9 - 98.9 rmse range?
+
+##Pick the best version from CV 
+best_cv_bs2 <- select_best(rf_cv_bs2, metric = "rmse")
+final_rf_bs2 <- finalize_workflow(rf_bs2_tune_wf, best_cv_bs2)
+rf_best_bs2 <- fit(final_rf_bs2, data = train_data)
+train_predict_bs2 <- predict(rf_best_bs2, new_data = train_data) %>% bind_cols(train_data %>% select(count)) %>% mutate(dataset = "Train")
+metrics_train_bs2 <- train_predict_bs2 %>% metrics(truth = count, estimate = .pred)
+print(metrics_train_bs2) #rmse 96.1, rs1 0.0848
+
+##Evaluate with test data
+test_predict_bs2 <- predict(rf_best_bs2, new_data = test_data) %>% bind_cols(test_data) %>%
+  mutate(dataset = "Test")
+metrics_test_bs2 <- test_predict_bs2 %>% metrics(truth = count, estimate = .pred)
+print(metrics_test_bs2) #rmse is 91.1 (why is this identical to the last one whaaaattt)
+
+##Plot predicted vs observed
+combined_predict_bs2 <- bind_rows(train_predict_bs2, test_predict_bs2)
+ggplot(combined_predict_bs2, aes(x = count, y = .pred, color = dataset, shape = dataset)) +
+  geom_point(size = 2, alpha = 0.7) +
+  coord_cartesian(xlim = c(0, 1250), ylim = c(0, 300)) +
+  labs(x = "Observed values", y = "Predicted values", title = "Predicted vs Observed: Training and Test Data")
+```
+
+This looks really the same as the last one, really. The test vs train points occupy similar space, but the plot is so so flat, predicted and observed are so different, it is nowhere near a nice diagonal line. I'm thinking probably this means I asked a horrible question and speed + wind_speed_class + sea_state_class cannot be used to predict number of birds. Which I guess makes sense, I just thought maybe on a day which horrible weather and rough seas, they might see fewer birds because they don't want to deal with it all? But I guess not. 
+
+One more horrible model to get to the homework requirements, did SVM, had to google the initial coding/requirements, then followed the same basic set up as before
+
+```{r}
+##Set it up, do initial modeling
+svm_bs3 <- svm_rbf(cost = 1, rbf_sigma = 0.01) %>% set_engine("kernlab") %>% set_mode("regression")
+svm_bs3_fit <- svm_bs3 %>% fit(count ~ speed + wind_speed_class + sea_state_class, data = train_data)
+predict_svm_bs3 <- predict(svm_bs3_fit, new_data = train_data) %>% bind_cols(train_data %>% select(count))
+metrics_svm_bs3 <- predict_svm_bs3 %>% metrics(truth = count, estimate = .pred)
+print(metrics_svm_bs3) #rmse is 101, rsq is 0.00596
+
+#Do CV
+set.seed(rngseed)
+cv_folds <- vfold_cv(train_data, v = 10)
+recipe_svm <- recipe(count ~ speed + wind_speed_class + sea_state_class, data = train_data) %>% step_normalize(all_numeric_predictors()) #google said this was an important step to include for svm
+svm_bs3_tune <- svm_rbf(cost = tune(), rbf_sigma = tune()) %>% set_engine("kernlab") %>% set_mode("regression")
+svm_wf_bs3 <- workflow() %>% add_recipe(recipe_svm) %>% add_model(svm_bs3_tune)
+svm_grid_bs3 <- grid_regular(cost(range = c(-3, 3)), rbf_sigma(range = c(-3, 0)),levels = 5)
+svm_cv_bs3 <- tune_grid(svm_wf_bs3, resamples = cv_folds, grid = svm_grid_bs3, metrics = metric_set(yardstick::rmse))
+collect_metrics(svm_cv_bs3) #rmse 99.6 across the board
+
+##Pick the best version
+best_cv_bs3 <- select_best(svm_cv_bs3, metric = "rmse")
+final_cv_bs3 <- finalize_workflow(svm_wf_bs3, best_cv_bs3)
+svm_best_bs3 <- fit(final_cv_bs3, data = train_data)
+train_predict_bs3 <- predict(svm_best_bs3, new_data = train_data) %>% bind_cols(train_data %>% select(count)) %>% mutate(dataset = "Train")
+metrics_train_bs3 <- train_predict_bs3 %>% metrics(truth = count, estimate = .pred)
+print(metrics_train_bs3) #rmse 100, rsq 0.0131
+
+##Test predictions
+test_predict_bs3 <- predict(svm_best_bs3, new_data = test_data) %>% bind_cols(test_data %>% select(count)) %>% mutate(dataset = "Test")
+metrics_test_bs3 <- test_predict_bs3 %>% metrics(truth = count, estimate = .pred)
+print(metrics_test_bs3) #rmse 92.3, rsq 0.000569
+
+##Plot predicted vs observed
+combined_predict_bs3 <- bind_rows(train_predict_bs3, test_predict_bs3)
+ggplot(combined_predict_bs3, aes(x = count, y = .pred, color = dataset, shape = dataset)) +
+  geom_point(size = 2, alpha = 0.7) +
+  coord_cartesian(xlim = c(0, 1250), ylim = c(0, 300)) +
+  labs(x = "Observed values", y = "Predicted values", title = "Predicted vs Observed: Training and Test Data")
+```
+
+Again, horrible. I think the fact that all three off these are horrible either means that a - I have no idea what I'm doing whatsoever, or b - these are really horrible predictors of this outcome. The next part I think is to make a summary table of my "findings", but really each of these is bad and I struggle to pick out if one is really worse than the others. 
